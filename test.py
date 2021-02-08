@@ -1,5 +1,8 @@
-import numpy as np
-import time
+import os
 
-t = time.strftime('%Y-%m-%d_%H:%M:%S',time.localtime(time.time()))
-print(t)
+
+datatype = r"C:\Users\zhangwei\Desktop\class1\images\2014.tif"
+
+if not os.path.exists(datatype):
+   os.makedirs(datatype)
+   print("目录创建成功！")

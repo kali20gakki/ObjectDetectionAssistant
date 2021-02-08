@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
 import shapely.geometry as shgeo
-import time
+import time, shutil
 
 # 设置风格，尺度
 sns.set_style('darkgrid')
@@ -86,6 +86,62 @@ def get_data(label_dir, bbox_type="hbb"):
     return data_dict
 
 
+def get_data2(label_dir, label_start_num, class_num, select_num):
+    """[summary]
+
+    Args:
+        label_dir ([type]): 标签路径
+        label_start_num ([type]): label标注第一类开始数字0 or 1
+        class_num ([type]): 类别数量
+        select_num ([type]): 选择指定的类别数字 
+
+    Returns:
+        [type]: [description]
+    """
+    assert Path(label_dir).is_dir(), "label_dir is not exist"
+
+    txts = os.listdir(label_dir)
+    data_list =[]
+    for txt in txts:
+        cnt_list = [0] * class_num
+        temp = []
+        name = int(txt.split(".")[0])
+        temp.append(name)
+
+        with open(os.path.join(label_dir, txt), 'r') as f:
+            lines = f.readlines()
+        for line in lines:
+            label = int(line.split()[0])
+            if label_start_num == 1:
+                cnt_list[label - 1] += 1
+            elif label_start_num == 0:
+                cnt_list[label] += 1
+
+        temp.extend(cnt_list)
+        data_list.append(temp)
+    
+    # 过滤出只含指定类别的文件名
+    data = np.array(data_list)
+    data = data[np.argsort(data[:,select_num])][::-1] # select_num列降序排序
+    index = np.where(data[...,select_num] > 0)
+    return data[index][:,0]
+
+def copy_files(src_dir, det_dir, data_list):
+    for name in data_list:
+        img_path = os.path.join(src_dir, "images", str(name) + ".tif")
+        txt_path = os.path.join(src_dir, "labels", str(name) + ".txt")
+
+        new_img_path = os.path.join(det_dir, "images", str(name) + ".tif")
+        new_txt_path = os.path.join(det_dir, "labels", str(name) + ".txt")
+
+        shutil.copy(img_path, new_img_path)
+        shutil.copy(txt_path, new_txt_path)
+
+        print(name)
+
+
+
+
 def analysis_bbox(data, label_path, save_name):
     nums = len(data)
     fig, axes = plt.subplots(3, nums, figsize=(10*nums, 3*5))
@@ -139,7 +195,8 @@ def analysis_bbox(data, label_path, save_name):
         if i == 0 :
             ax.text(-0.5,0.5, "bbox center\n   分布",  transform=ax.transAxes, fontsize=20, color='blue')
 
-    plt.savefig(save_name,dpi=500,bbox_inches = 'tight')
+    save_path = os.path.join("./AnalysisResults", save_name)
+    plt.savefig(save_path,dpi=500,bbox_inches = 'tight')
     #plt.show()
 
 
@@ -203,12 +260,16 @@ def analysis_total(data, label_path, save_name):
     ax.text(0.7, 0.74, max_str, transform=ax.transAxes, color='coral')
     ax.text(0.7, 0.70, min_str, transform=ax.transAxes, color='cyan')
 
-    plt.savefig(save_name,dpi=500,bbox_inches = 'tight')
+    save_path = os.path.join("./AnalysisResults", save_name)
+    plt.savefig(save_path,dpi=500,bbox_inches = 'tight')
     #plt.show()
 
 
-def analysis(label_dir, bbox_type="hbb", img_size=(640, 640)):
+def analysis(label_dir, bbox_type="hbb"):
     data = get_data(label_dir, bbox_type)
+
+    if not os.path.exists("./AnalysisResults"):
+        os.makedirs("./AnalysisResults")
 
     save_time = time.strftime('%Y-%m-%d_%H-%M-%S',time.localtime(time.time()))
     analysis_bbox(data, label_dir, "bbox_"+ save_time + ".jpg")
@@ -217,5 +278,7 @@ def analysis(label_dir, bbox_type="hbb", img_size=(640, 640)):
 
 
 if __name__ == "__main__":
-    label_dir = r"C:\Users\zhangwei\Desktop\label"
-    analysis(label_dir, "obb")
+    label_dir = r"E:\研究所数据集\labels"
+    data = get_data2(label_dir, 1, 5, 3)
+    print(data)
+    copy_files(r"E:\研究所数据集", r"E:\研究所数据集\class3", data)
